@@ -4,11 +4,10 @@ pipeline {
     environment {
         AWS_REGION = "eu-north-1"
         ECR_REPO = "188776114860.dkr.ecr.eu-north-1.amazonaws.com/namespace/appcode-ecr"
-        IMAGE_TAG = "${BUILD_NUMBER}"   
-        CLUSTER_NAME = "my-eks-cluster"
+        IMAGE_TAG = "${BUILD_NUMBER}"
 
-        APP_REPO = "https://github.com/Tulajaram12/appcode.git"
-        HELM_REPO = "https://github.com/Tulajaram12/helm-charts.git"
+        APP_REPO = "https://github.com/Tulajaram12/argocdapp.git"
+        HELM_REPO = "https://github.com/Tulajaram12/new-helm-charts.git"
     }
 
     stages {
@@ -16,7 +15,7 @@ pipeline {
         stage('Checkout App Code') {
             steps {
                 dir('app') {
-                    git branch: 'main', url: "${APP_REPO}"
+                    git branch: 'Main', url: "${APP_REPO}"
                 }
             }
         }
@@ -40,23 +39,43 @@ pipeline {
         stage('Push to ECR') {
             steps {
                 sh '''
-                aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REPO
+                aws ecr get-login-password --region $AWS_REGION | \
+                docker login --username AWS --password-stdin 188776114860.dkr.ecr.eu-north-1.amazonaws.com
+
                 docker tag sample-app:latest $ECR_REPO:$IMAGE_TAG
+
                 docker push $ECR_REPO:$IMAGE_TAG
                 '''
             }
         }
 
-        stage('Deploy to EKS using Helm') {
+        stage('Update Helm values.yaml') {
             steps {
-                sh '''
-                aws eks update-kubeconfig --region $AWS_REGION --name $CLUSTER_NAME
+                dir('helm/sample-app') {
+                    sh """
+                    sed -i 's|tag: .*|tag: "${IMAGE_TAG}"|g' values.yaml
 
-                helm upgrade --install sample-app ./helm/sample-app \
-                  --set image.repository=$ECR_REPO \
-                  --set image.tag=$IMAGE_TAG \
-                  --force
-                '''
+                    echo "Updated values.yaml:"
+                    cat values.yaml
+                    """
+                }
+            }
+        }
+
+        stage('Commit and Push Helm Changes') {
+            steps {
+                dir('helm') {
+                    sh """
+                    git config user.email "tulajaramkamble@gmail.com"
+                    git config user.name "tulajaram"
+
+                    git add .
+
+                    git commit -m "Update image tag to ${IMAGE_TAG}" || echo "No changes to commit"
+
+                    git push -u origin main
+                    """
+                }
             }
         }
     }
