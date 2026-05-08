@@ -65,16 +65,24 @@ pipeline {
         stage('Commit and Push Helm Changes') {
             steps {
                 dir('helm') {
-                    sh """
-                    git config user.email "tulajaramkamble@gmail.com"
-                    git config user.name "tulajaram"
+                    withCredentials([usernamePassword(
+                        credentialsId: 'githubapi',
+                        usernameVariable: 'GIT_USER',
+                        passwordVariable: 'GIT_PASS'
+                    )]) {
+                        sh """
+                        git config user.email "tulajaramkamble@gmail.com"
+                        git config user.name "tulajaram"
 
-                    git add .
+                        git add .
 
-                    git commit -m "Update image tag to ${IMAGE_TAG}" || echo "No changes to commit"
+                        git commit -m "Update image tag to ${IMAGE_TAG}" || echo "No changes to commit"
 
-                    git push -u origin main
-                    """
+                        git remote set-url origin https://${GIT_USER}:${GIT_PASS}@github.com/Tulajaram12/new-helm-charts.git
+
+                        git push origin main
+                        """
+                    }
                 }
             }
         }
