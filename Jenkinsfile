@@ -14,7 +14,7 @@ pipeline {
 
         stage('Checkout App Code') {
             steps {
-                dir('app') {
+                dir('app/app') {
                     git branch: 'Main', url: "${APP_REPO}"
                 }
             }
