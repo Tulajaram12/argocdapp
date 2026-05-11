@@ -4,13 +4,19 @@ pipeline {
     environment {
         AWS_REGION = "eu-north-1"
         ECR_REPO = "188776114860.dkr.ecr.eu-north-1.amazonaws.com/namespace/appcode-ecr"
-        IMAGE_TAG = "${BUILD_NUMBER}"
+        IMAGE_TAG = "v${BUILD_NUMBER}"
 
         APP_REPO = "https://github.com/Tulajaram12/argocdapp.git"
         HELM_REPO = "https://github.com/Tulajaram12/new-helm-charts.git"
     }
 
     stages {
+
+        stage('Clean Workspace') {
+            steps {
+                cleanWs()
+            }
+        }
 
         stage('Checkout App Code') {
             steps {
@@ -84,6 +90,19 @@ pipeline {
                         """
                     }
                 }
+            }
+        }
+
+        stage('Cleanup Docker Image (Local only)') {
+            steps {
+                sh '''
+                echo "Cleaning up local Docker images..."
+
+                docker rmi sample-app:latest || true
+                docker rmi $ECR_REPO:$IMAGE_TAG || true
+
+                echo "Docker cleanup completed"
+                '''
             }
         }
     }
